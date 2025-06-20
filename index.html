@@ -22,7 +22,15 @@
 </head>
 <body>
   <div class="container">
-    <h2 id="title"></h2>
+    <div style="display:flex;align-items:center;justify-content:center;margin-bottom:8px;">
+      <h2 id="title" style="margin:0 10px 0 0;"></h2>
+      <select class="lang-select" id="langSelect">
+        <option value="zh">中文</option>
+        <option value="en">English</option>
+        <option value="no">Norsk</option>
+        <option value="ko">한국어</option>
+      </select>
+    </div>
     <div class="controls-wrapper">
       <div class="controls-row">
         <label id="gridLabel"></label>
@@ -49,34 +57,33 @@
     </div>
     <canvas id="pixelCanvas" width="320" height="320" style="cursor: pointer;"></canvas>
     <div class="controls-row" style="justify-content:center; margin: 0 0 6px 0;">
-      <select class="lang-select" id="langSelect">
-        <option value="zh">中文</option>
-        <option value="en">English</option>
-        <option value="no">Norsk</option>
-        <option value="ko">한국어</option>
-      </select>
-      <button id="resetBtn" style="margin-left:16px; background:#b85c5c; color:#fff; border:none; border-radius:6px; padding:6px 18px; font-size:1em; cursor:pointer;">重置画布</button>
+      <button id="resetBtn" style="background:#b85c5c; color:#fff; border:none; border-radius:6px; padding:6px 18px; font-size:1em; cursor:pointer;"></button>
+      <button id="saveBtn" style="margin-left:8px; background:#b85c5c; color:#fff; border:none; border-radius:6px; padding:6px 18px; font-size:1em; cursor:pointer;"></button>
     </div>
-    <div class="color-row">
+    <div class="color-row" style="margin-bottom:2px;">
       <label id="colorLabel"></label>
       <input type="color" id="colorPicker">
+      <label id="brushSizeLabel" style="margin-left:12px;"></label>
+      <input type="range" id="brushSizeSlider" min="1" max="8" step="1" value="1" style="width:60px;vertical-align:middle;">
+      <span id="brushSizeVal">1</span>
     </div>
+    <div id="paletteWrapper" style="display:flex;flex-direction:column;align-items:center;margin-bottom:8px;width:100%;"></div>
     <div class="error" id="errorMsg"></div>
   </div>
   <script>
     // 多语言字典
     const LANGS = [
       {
-        code: "zh", title: "像素画布", gridLabel: "网格", shapeLabel: "像素形状", radiusLabel: "圆角", pixelSizeLabel: "像素大小", colorLabel: "颜色", shapeSquare: "直角方格", shapeRound: "圆角方格"
+        code: "zh", title: "像素画布", gridLabel: "网格", shapeLabel: "像素形状", radiusLabel: "圆角", pixelSizeLabel: "像素大小", colorLabel: "自定义笔刷色彩", shapeSquare: "直角方格", shapeRound: "圆角方格", resetBtn: "重置画布", saveBtn: "保存图片", brushSizeLabel: "笔刷大小", paletteA: "推荐配色A", paletteB: "推荐配色B"
       },
       {
-        code: "en", title: "Pixel Canvas", gridLabel: "Grid", shapeLabel: "Pixel Shape", radiusLabel: "Radius", pixelSizeLabel: "Pixel Size", colorLabel: "Color", shapeSquare: "Square", shapeRound: "Round"
+        code: "en", title: "Pixel Canvas", gridLabel: "Grid", shapeLabel: "Pixel Shape", radiusLabel: "Radius", pixelSizeLabel: "Pixel Size", colorLabel: "Custom Color", shapeSquare: "Square", shapeRound: "Round", resetBtn: "Reset", saveBtn: "Save", brushSizeLabel: "Brush Size", paletteA: "Recommended A", paletteB: "Recommended B"
       },
       {
-        code: "no", title: "Pikselpanel", gridLabel: "Rutenett", shapeLabel: "Pikselform", radiusLabel: "Radius", pixelSizeLabel: "Pikselstørrelse", colorLabel: "Farge", shapeSquare: "Rektangel", shapeRound: "Sirkel"
+        code: "no", title: "Pikselpanel", gridLabel: "Rutenett", shapeLabel: "Pikselform", radiusLabel: "Radius", pixelSizeLabel: "Pikselstørrelse", colorLabel: "Egendefinert farge", shapeSquare: "Rektangel", shapeRound: "Sirkel", resetBtn: "Nullstill", saveBtn: "Lagre", brushSizeLabel: "Penselstørrelse", paletteA: "Anbefalt A", paletteB: "Anbefalt B"
       },
       {
-        code: "ko", title: "픽셀 캔버스", gridLabel: "그리드", shapeLabel: "픽셀 모양", radiusLabel: "반지름", pixelSizeLabel: "픽셀 크기", colorLabel: "색상", shapeSquare: "직각 사각형", shapeRound: "둥근 사각형"
+        code: "ko", title: "픽셀 캔버스", gridLabel: "그리드", shapeLabel: "픽셀 모양", radiusLabel: "반지름", pixelSizeLabel: "픽셀 크기", colorLabel: "사용자 색상", shapeSquare: "직각 사각형", shapeRound: "둥근 사각형", resetBtn: "초기화", saveBtn: "저장", brushSizeLabel: "브러시 크기", paletteA: "추천 A", paletteB: "추천 B"
       }
     ];
     // 控件
@@ -87,6 +94,7 @@
     // 状态
     let langIdx = 0, gridSize = 8, cellSize = 40, pixelShape = 'round', cellRadius = 13, pixelSizeRatio = 1;
     let pixelColors = Array.from({length: 64}, () => '#ffffff');
+    let brushSize = 1;
     // 多语言切换
     function setLangByCode(code) {
       langIdx = LANGS.findIndex(l => l.code === code);
@@ -99,6 +107,9 @@
       safeSet('radiusLabel', L.radiusLabel);
       safeSet('pixelSizeLabel', L.pixelSizeLabel);
       safeSet('colorLabel', L.colorLabel);
+      safeSet('brushSizeLabel', L.brushSizeLabel || '笔刷大小');
+      safeSet('resetBtn', L.resetBtn || '重置画布');
+      safeSet('saveBtn', L.saveBtn || '保存图片');
       // 下拉菜单选项
       const optSquare = document.querySelector('#shapeSelect option[value=\"square\"]');
       if (optSquare) optSquare.textContent = L.shapeSquare;
@@ -167,17 +178,23 @@
     pixelCanvas.addEventListener('mouseleave', function() { isDrawing = false; });
     function drawPixel(e) {
       const rect = pixelCanvas.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) / cellSize);
-      const y = Math.floor((e.clientY - rect.top) / cellSize);
-      if (x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
-        const idx = y * gridSize + x;
-        pixelColors[idx] = colorPicker.value;
-        renderCanvases();
+      const cx = Math.floor((e.clientX - rect.left) / cellSize);
+      const cy = Math.floor((e.clientY - rect.top) / cellSize);
+      for (let dy = -Math.floor((brushSize-1)/2); dy <= Math.floor(brushSize/2); dy++) {
+        for (let dx = -Math.floor((brushSize-1)/2); dx <= Math.floor(brushSize/2); dx++) {
+          const x = cx + dx, y = cy + dy;
+          if (x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
+            const idx = y * gridSize + x;
+            pixelColors[idx] = colorPicker.value;
+          }
+        }
       }
+      renderCanvases();
     }
     // 控件事件
     document.getElementById('langSelect').onchange = (e) => {
       setLangByCode(e.target.value);
+      renderPalettes();
       renderCanvases();
     };
     document.getElementById('gridSizeSelect').onchange = (e) => {
@@ -207,11 +224,58 @@
       document.getElementById('pixelSizeVal').textContent = pixelSizeRatio.toFixed(2);
       renderCanvases();
     };
+    document.getElementById('brushSizeSlider').oninput = function() {
+      brushSize = parseInt(this.value, 10);
+      document.getElementById('brushSizeVal').textContent = brushSize;
+    };
     // 添加重置按钮事件
     document.getElementById('resetBtn').onclick = function() {
       pixelColors = Array.from({length: gridSize * gridSize}, () => '#ffffff');
       renderCanvases();
     };
+    // 保存图片功能
+    document.getElementById('saveBtn').onclick = function() {
+      const link = document.createElement('a');
+      link.download = 'pixel-canvas.png';
+      link.href = pixelCanvas.toDataURL('image/png');
+      link.click();
+    };
+    // 配色卡数据
+    const PALETTES = [
+      { nameKey: 'paletteA', colors: ['#7CFEF0', '#6BFFB8', '#2CEAA3', '#28965A', '#2A6041'] },
+      { nameKey: 'paletteB', colors: ['#0081A7', '#00AFB9', '#FDFCDC', '#FED987', '#F07167'] }
+    ];
+    function renderPalettes() {
+      const wrapper = document.getElementById('paletteWrapper');
+      wrapper.innerHTML = '';
+      PALETTES.forEach((pal, idx) => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.margin = '2px 0';
+        const label = document.createElement('span');
+        label.textContent = LANGS[langIdx][pal.nameKey] || pal.nameKey;
+        label.style.color = '#ccc';
+        label.style.fontSize = '0.98em';
+        label.style.marginRight = '6px';
+        row.appendChild(label);
+        pal.colors.forEach(color => {
+          const swatch = document.createElement('div');
+          swatch.style.width = '22px';
+          swatch.style.height = '22px';
+          swatch.style.margin = '0 2px';
+          swatch.style.borderRadius = '6px';
+          swatch.style.border = '2px solid #222';
+          swatch.style.background = color;
+          swatch.style.cursor = 'pointer';
+          swatch.title = color;
+          swatch.onclick = () => { colorPicker.value = color; };
+          row.appendChild(swatch);
+        });
+        wrapper.appendChild(row);
+      });
+    }
+    renderPalettes();
     // 初始化
     setLangByCode('zh');
     cellSize = pixelCanvas.width / gridSize;
@@ -221,6 +285,8 @@
     document.getElementById('radiusSlider').disabled = (pixelShape === 'square');
     document.getElementById('pixelSizeSlider').value = pixelSizeRatio;
     document.getElementById('pixelSizeVal').textContent = pixelSizeRatio.toFixed(2);
+    document.getElementById('brushSizeSlider').value = brushSize;
+    document.getElementById('brushSizeVal').textContent = brushSize;
     colorPicker.value = '#ff0000';
     renderCanvases();
   </script>
