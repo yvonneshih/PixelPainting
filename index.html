@@ -57,7 +57,9 @@
     </div>
     <canvas id="pixelCanvas" width="320" height="320" style="cursor: pointer;"></canvas>
     <div class="controls-row" style="justify-content:center; margin: 0 0 6px 0;">
-      <button id="resetBtn" style="background:#b85c5c; color:#fff; border:none; border-radius:6px; padding:6px 18px; font-size:1em; cursor:pointer;"></button>
+      <button id="undoBtn" style="background:#b85c5c; color:#fff; border:none; border-radius:6px; padding:6px 18px; font-size:1em; cursor:pointer;"></button>
+      <button id="redoBtn" style="margin-left:8px; background:#b85c5c; color:#fff; border:none; border-radius:6px; padding:6px 18px; font-size:1em; cursor:pointer;"></button>
+      <button id="resetBtn" style="margin-left:8px; background:#b85c5c; color:#fff; border:none; border-radius:6px; padding:6px 18px; font-size:1em; cursor:pointer;"></button>
       <button id="saveBtn" style="margin-left:8px; background:#b85c5c; color:#fff; border:none; border-radius:6px; padding:6px 18px; font-size:1em; cursor:pointer;"></button>
     </div>
     <div class="color-row" style="margin-bottom:2px;">
@@ -74,16 +76,16 @@
     // 多语言字典
     const LANGS = [
       {
-        code: "zh", title: "像素画布", gridLabel: "网格", shapeLabel: "像素形状", radiusLabel: "圆角", pixelSizeLabel: "像素大小", colorLabel: "自定义笔刷色彩", shapeSquare: "直角方格", shapeRound: "圆角方格", resetBtn: "重置画布", saveBtn: "保存图片", brushSizeLabel: "笔刷大小", paletteA: "推荐配色A", paletteB: "推荐配色B"
+        code: "zh", title: "像素画布", gridLabel: "网格", shapeLabel: "像素形状", radiusLabel: "圆角", pixelSizeLabel: "像素大小", colorLabel: "自定义笔刷色彩", shapeSquare: "直角方格", shapeRound: "圆角方格", resetBtn: "重置画布", saveBtn: "保存图片", undoBtn: "撤销", redoBtn: "重做", brushSizeLabel: "笔刷大小", paletteA: "推荐配色A", paletteB: "推荐配色B"
       },
       {
-        code: "en", title: "Pixel Canvas", gridLabel: "Grid", shapeLabel: "Pixel Shape", radiusLabel: "Radius", pixelSizeLabel: "Pixel Size", colorLabel: "Custom Color", shapeSquare: "Square", shapeRound: "Round", resetBtn: "Reset", saveBtn: "Save", brushSizeLabel: "Brush Size", paletteA: "Recommended A", paletteB: "Recommended B"
+        code: "en", title: "Pixel Canvas", gridLabel: "Grid", shapeLabel: "Pixel Shape", radiusLabel: "Radius", pixelSizeLabel: "Pixel Size", colorLabel: "Custom Color", shapeSquare: "Square", shapeRound: "Round", resetBtn: "Reset", saveBtn: "Save", undoBtn: "Undo", redoBtn: "Redo", brushSizeLabel: "Brush Size", paletteA: "Recommended A", paletteB: "Recommended B"
       },
       {
-        code: "no", title: "Pikselpanel", gridLabel: "Rutenett", shapeLabel: "Pikselform", radiusLabel: "Radius", pixelSizeLabel: "Pikselstørrelse", colorLabel: "Egendefinert farge", shapeSquare: "Rektangel", shapeRound: "Sirkel", resetBtn: "Nullstill", saveBtn: "Lagre", brushSizeLabel: "Penselstørrelse", paletteA: "Anbefalt A", paletteB: "Anbefalt B"
+        code: "no", title: "Pikselpanel", gridLabel: "Rutenett", shapeLabel: "Pikselform", radiusLabel: "Radius", pixelSizeLabel: "Pikselstørrelse", colorLabel: "Egendefinert farge", shapeSquare: "Rektangel", shapeRound: "Sirkel", resetBtn: "Nullstill", saveBtn: "Lagre", undoBtn: "Angre", redoBtn: "Gjør om", brushSizeLabel: "Penselstørrelse", paletteA: "Anbefalt A", paletteB: "Anbefalt B"
       },
       {
-        code: "ko", title: "픽셀 캔버스", gridLabel: "그리드", shapeLabel: "픽셀 모양", radiusLabel: "반지름", pixelSizeLabel: "픽셀 크기", colorLabel: "사용자 색상", shapeSquare: "직각 사각형", shapeRound: "둥근 사각형", resetBtn: "초기화", saveBtn: "저장", brushSizeLabel: "브러시 크기", paletteA: "추천 A", paletteB: "추천 B"
+        code: "ko", title: "픽셀 캔버스", gridLabel: "그리드", shapeLabel: "픽셀 모양", radiusLabel: "반지름", pixelSizeLabel: "픽셀 크기", colorLabel: "사용자 색상", shapeSquare: "직각 사각형", shapeRound: "둥근 사각형", resetBtn: "초기화", saveBtn: "저장", undoBtn: "실행 취소", redoBtn: "다시 실행", brushSizeLabel: "브러시 크기", paletteA: "추천 A", paletteB: "추천 B"
       }
     ];
     // 控件
@@ -93,7 +95,7 @@
     const errorMsg = document.getElementById('errorMsg');
     // 状态
     let langIdx = 0, gridSize = 8, cellSize = 40, pixelShape = 'round', cellRadius = 13, pixelSizeRatio = 1;
-    let pixelColors = Array.from({length: 64}, () => '#ffffff');
+    let pixelColors = Array.from({length: 64}, () => '#383838');
     let brushSize = 1;
     // 多语言切换
     function setLangByCode(code) {
@@ -110,6 +112,8 @@
       safeSet('brushSizeLabel', L.brushSizeLabel || '笔刷大小');
       safeSet('resetBtn', L.resetBtn || '重置画布');
       safeSet('saveBtn', L.saveBtn || '保存图片');
+      safeSet('undoBtn', L.undoBtn || '撤销');
+      safeSet('redoBtn', L.redoBtn || '重做');
       // 下拉菜单选项
       const optSquare = document.querySelector('#shapeSelect option[value=\"square\"]');
       if (optSquare) optSquare.textContent = L.shapeSquare;
@@ -125,7 +129,7 @@
       for (let y = 0; y < gridSize; y++) {
         for (let x = 0; x < gridSize; x++) {
           const idx = y * gridSize + x;
-          const color = pixelColors[idx] || '#fff';
+          const color = pixelColors[idx] || '#383838';
           const px = x * cellSize + (cellSize - cellSize * pixelSizeRatio) / 2 + gap/2;
           const py = y * cellSize + (cellSize - cellSize * pixelSizeRatio) / 2 + gap/2;
           const size = cellSize * pixelSizeRatio - gap;
@@ -169,6 +173,7 @@
     let isDrawing = false;
     pixelCanvas.addEventListener('mousedown', function(e) {
       isDrawing = true;
+      pushUndo();
       drawPixel(e);
     });
     pixelCanvas.addEventListener('mousemove', function(e) {
@@ -176,6 +181,13 @@
     });
     pixelCanvas.addEventListener('mouseup', function() { isDrawing = false; });
     pixelCanvas.addEventListener('mouseleave', function() { isDrawing = false; });
+    // 撤销/重做栈
+    let undoStack = [], redoStack = [];
+    function pushUndo() {
+      undoStack.push(pixelColors.slice());
+      if (undoStack.length > 100) undoStack.shift();
+      redoStack = [];
+    }
     function drawPixel(e) {
       const rect = pixelCanvas.getBoundingClientRect();
       const cx = Math.floor((e.clientX - rect.left) / cellSize);
@@ -203,7 +215,7 @@
       // 自动调整 pixelColors 长度
       const total = gridSize * gridSize;
       if (pixelColors.length < total) {
-        pixelColors = pixelColors.concat(Array.from({length: total - pixelColors.length}, () => '#ffffff'));
+        pixelColors = pixelColors.concat(Array.from({length: total - pixelColors.length}, () => '#383838'));
       } else if (pixelColors.length > total) {
         pixelColors = pixelColors.slice(0, total);
       }
@@ -230,7 +242,8 @@
     };
     // 添加重置按钮事件
     document.getElementById('resetBtn').onclick = function() {
-      pixelColors = Array.from({length: gridSize * gridSize}, () => '#ffffff');
+      pushUndo();
+      pixelColors = Array.from({length: gridSize * gridSize}, () => '#383838');
       renderCanvases();
     };
     // 保存图片功能
@@ -239,6 +252,21 @@
       link.download = 'pixel-canvas.png';
       link.href = pixelCanvas.toDataURL('image/png');
       link.click();
+    };
+    // 撤销功能
+    document.getElementById('undoBtn').onclick = function() {
+      if (undoStack.length > 0) {
+        redoStack.push(pixelColors.slice());
+        pixelColors = undoStack.pop();
+        renderCanvases();
+      }
+    };
+    document.getElementById('redoBtn').onclick = function() {
+      if (redoStack.length > 0) {
+        undoStack.push(pixelColors.slice());
+        pixelColors = redoStack.pop();
+        renderCanvases();
+      }
     };
     // 配色卡数据
     const PALETTES = [
