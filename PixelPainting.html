@@ -22,12 +22,6 @@
 </head>
 <body>
   <div class="container">
-    <select class="lang-select" id="langSelect">
-      <option value="zh">中文</option>
-      <option value="en">English</option>
-      <option value="no">Norsk</option>
-      <option value="ko">한국어</option>
-    </select>
     <h2 id="title"></h2>
     <div class="controls-wrapper">
       <div class="controls-row">
@@ -54,6 +48,15 @@
       </div>
     </div>
     <canvas id="pixelCanvas" width="320" height="320" style="cursor: pointer;"></canvas>
+    <div class="controls-row" style="justify-content:center; margin: 0 0 6px 0;">
+      <select class="lang-select" id="langSelect">
+        <option value="zh">中文</option>
+        <option value="en">English</option>
+        <option value="no">Norsk</option>
+        <option value="ko">한국어</option>
+      </select>
+      <button id="resetBtn" style="margin-left:16px; background:#b85c5c; color:#fff; border:none; border-radius:6px; padding:6px 18px; font-size:1em; cursor:pointer;">重置画布</button>
+    </div>
     <div class="color-row">
       <label id="colorLabel"></label>
       <input type="color" id="colorPicker">
@@ -202,6 +205,11 @@
     document.getElementById('pixelSizeSlider').oninput = function() {
       pixelSizeRatio = parseFloat(this.value);
       document.getElementById('pixelSizeVal').textContent = pixelSizeRatio.toFixed(2);
+      renderCanvases();
+    };
+    // 添加重置按钮事件
+    document.getElementById('resetBtn').onclick = function() {
+      pixelColors = Array.from({length: gridSize * gridSize}, () => '#ffffff');
       renderCanvases();
     };
     // 初始化
